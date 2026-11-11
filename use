@@ -1,0 +1,251 @@
+# Guía de uso: Mantenimiento-PC.ps1
+
+Este documento explica cómo utilizar el script de mantenimiento para Windows.
+
+## 1. Ejecución básica
+
+1. Guarda `Mantenimiento-PC.ps1` en una carpeta del equipo.
+2. Haz clic derecho sobre el archivo.
+3. Selecciona **Ejecutar con PowerShell**.
+4. Acepta la elevación a administrador si Windows la solicita.
+5. Aparecerá el menú principal.
+
+El script requiere permisos de administrador. Si se ejecuta sin ellos, intentará reiniciarse automáticamente con privilegios elevados. [11]
+
+## 2. Menú principal
+
+Al abrir el script verás una pantalla similar a esta:
+
+```text
++==================================================+
+|                                                  |
+|         MANTENIMIENTO DEL SISTEMA  v2.0          |
+|           Windows Cleaner & Optimizer            |
+|                                                  |
++==================================================+
+
+    Limpiar archivos temporales
+    Vaciar Papelera de reciclaje
+    Limpiar cache de Windows Update
+    Eliminar cache de miniaturas
+    Limpiar carpeta Prefetch
+    Eliminar archivos de volcado (dumps)
+    Ejecutar Liberador de espacio (cleanmgr)
+    Limpiar logs de eventos antiguos
+    Limpiar cache de navegadores
+
+   Optimizar discos (Defrag/TRIM)
+
+   Verificar integridad del sistema (SFC + DISM)[1]
+   Ver programas de inicio
+   Verificar salud SMART de discos
+   Optimizar memoria RAM
+
+  [A]  EJECUTAR LIMPIEZA COMPLETA (1-9)
+  [E]  Exportar resultados a CSV
+  [S]  Salir
+```
+
+Escribe el número de la tarea y pulsa **Enter**.
+
+## 3. Tareas disponibles
+
+### Opción 1: Limpiar temporales
+
+Elimina archivos temporales de:
+
+- Carpeta temporal del usuario.
+- Carpeta temporal del sistema.
+- `C:\Windows\Temp`.
+- `C:\Users\<usuario>\AppData\Local\Temp`.
+
+Es una de las opciones más seguras para liberar espacio.
+
+### Opción 2: Vaciar la Papelera
+
+Elimina de forma permanente el contenido de la Papelera de reciclaje.
+
+**No la uses** si el usuario puede necesitar recuperar archivos borrados recientemente.
+
+### Opción 3: Limpiar Windows Update
+
+Borra los archivos descargados por Windows Update que ya no son necesarios.
+
+El script detiene temporalmente los servicios `wuauserv`, `bits`, `cryptsvc` y `msiserver`, limpia la carpeta `C:\Windows\SoftwareDistribution\Download` y vuelve a iniciar los servicios. [11]
+
+### Opción 4: Limpiar miniaturas
+
+Elimina las cachés de miniaturas de imágenes y vídeos. Windows las volverá a generar cuando sea necesario.
+
+### Opción 5: Limpiar Prefetch
+
+Elimina archivos de precarga de aplicaciones. Puede afectar temporalmente al tiempo de arranque de algunos programas hasta que Windows vuelva a generar los datos.
+
+### Opción 6: Eliminar dumps
+
+Borra archivos de volcado de memoria y registros de fallos:
+
+- `C:\Windows\Minidump`
+- `C:\Windows\memory.dmp`
+- `C:\Users\<usuario>\AppData\Local\CrashDumps`
+
+No los elimines si necesitas analizar un fallo reciente de Windows con un técnico.
+
+### Opción 7: Liberador de espacio
+
+Ejecuta la herramienta integrada de Windows `cleanmgr`.
+
+Antes de ejecutarla, el script crea una copia de seguridad de la configuración del Liberador de espacio en `C:\logs`. [11]
+
+### Opción 8: Limpiar logs de eventos
+
+Elimina registros de eventos de Windows cuyo tamaño sea superior a 50 MB.
+
+Esta opción puede dificultar el análisis posterior de incidencias, porque borra información de diagnóstico del sistema.
+
+### Opción 9: Limpiar caché de navegadores
+
+Limpia la caché de:
+
+- Google Chrome.
+- Microsoft Edge.
+- Mozilla Firefox.
+
+No elimina contraseñas, marcadores ni historial de navegación; solo borra archivos de caché.
+
+### Opción 10: Optimizar discos
+
+Ejecuta la optimización de discos NTFS mediante `Optimize-Volume`.
+
+En discos SSD normalmente realiza TRIM; en discos HDD puede realizar desfragmentación. Esta tarea puede tardar bastante.
+
+### Opción 11: Reparar sistema
+
+Ejecuta dos comprobaciones:
+
+```powershell
+sfc /scannow
+DISM /Online /Cleanup-Image /RestoreHealth
+```
+
+- `SFC` comprueba y repara archivos de sistema protegidos.
+- `DISM` comprueba y repara la imagen de Windows.
+
+Puede tardar entre varios minutos y más de una hora, según el estado del equipo.
+
+### Opción 12: Programas de inicio
+
+Muestra los programas configurados para iniciarse con Windows. No desinstala ni deshabilita nada por sí mismo.
+
+### Opción 13: Salud de discos
+
+Muestra el estado de salud y estado operativo de los discos detectados mediante `Get-PhysicalDisk`.
+
+Si aparece un estado distinto de `Healthy`, conviene hacer copia de seguridad de los datos y revisar el disco.
+
+### Opción 14: Optimizar memoria
+
+Muestra la memoria disponible antes y después de la optimización.
+
+La función intenta reducir el conjunto de trabajo de procesos en segundo plano y, si está disponible, utiliza `RAMMap.exe` para vaciar la memoria en espera.
+
+**Precaución:** esta función descarga `RAMMap.exe` desde `https://live.sysinternals.com/RAMMap.exe` si no existe en la carpeta temporal. En un entorno corporativo, valida previamente esta descarga con el equipo de seguridad o desactiva esta opción.
+
+## 4. Limpieza completa
+
+Escribe `A` y pulsa **Enter** para ejecutar automáticamente las opciones 1 a 9:
+
+- Temporales.
+- Papelera.
+- Caché de Windows Update.
+- Miniaturas.
+- Prefetch.
+- Dumps.
+- Liberador de espacio.
+- Logs de eventos.
+- Caché de navegadores.
+
+No ejecuta la optimización de discos, la reparación del sistema ni la optimización de memoria.
+
+## 5. Exportar resultados
+
+Escribe `E` para generar un archivo CSV con el resumen de tareas ejecutadas y el espacio liberado.
+
+El archivo se guarda en:
+
+```text
+C:\logs\Mantenimiento_AAAAAMMDD_HHMMSS.csv
+```
+
+## 6. Ejecución automática
+
+Para ejecutar la limpieza completa sin pasar por el menú:
+
+```powershell
+.\Mantenimiento-PC.ps1 -Silent -Full
+```
+
+Para ejecutarla y enviar un informe por correo:
+
+```powershell
+.\Mantenimiento-PC.ps1 -Silent -Full -EmailTo "destinatario@tuempresa.com"
+```
+
+El script pedirá el servidor SMTP durante la ejecución y enviará el log como adjunto.
+
+## 7. Revisión recomendada antes de producción
+
+Antes de usar el script en equipos de clientes o producción, revisa especialmente:
+
+- La ruta de logs: sustituye `$env:C:\logs` por `C:\logs` o `"$env:SystemDrive\logs"`.
+- La dirección de correo `mantenimiento@tuempresa.com` en la función `Enviar-Informe`.
+- El servidor SMTP y la autenticación necesaria para enviar correo.
+- La descarga automática de `RAMMap.exe` en la opción 14.
+- La eliminación de logs de eventos, ya que puede afectar al diagnóstico posterior.
+- La ejecución de `cleanmgr`, porque puede eliminar más elementos de los esperados según la configuración del equipo.
+
+## 8. Problemas frecuentes
+
+### “Este script requiere privilegios de administrador”
+
+Ejecuta PowerShell como administrador:
+
+1. Pulsa **Inicio**.
+2. Busca **PowerShell**.
+3. Haz clic derecho y selecciona **Ejecutar como administrador**.
+4. Ejecuta de nuevo el script.
+
+### “No se puede cargar el archivo porque la ejecución de scripts está deshabilitada”
+
+Ejecuta:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Mantenimiento-PC.ps1
+```
+
+O cambia la política solo para el usuario actual:
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### No se libera espacio
+
+Es normal si los archivos ya estaban vacíos o si Windows impide eliminar algunos elementos porque están en uso. Revisa el CSV y el log generado en `C:\logs`.
+
+### Windows Update no funciona después
+
+Comprueba que los servicios se hayan reiniciado:
+
+```powershell
+Get-Service wuauserv, bits, cryptsvc, msiserver
+```
+
+Si alguno está detenido, ejecútalo como administrador:
+
+```powershell
+Start-Service wuauserv
+Start-Service bits
+Start-Service cryptsvc
+Start-Service msiserver
+```
